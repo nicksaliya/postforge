@@ -1,0 +1,112 @@
+/* PostForge admin styles */
+
+#postforge-dynamic-fields {
+  margin-top: 20px;
+}
+
+#postforge-dynamic-fields h2 {
+  margin-top: 20px;
+}
+
+#postforge-dynamic-fields table.widefat th,
+#postforge-dynamic-fields table.widefat td {
+  vertical-align: top;
+}
+
+#postforge-dynamic-fields input[type="text"] {
+  width: 100%;
+  max-width: 300px;
+}
+
+.notice.postforge-success {
+  border-left: 4px solid #46b450;
+  padding: 10px;
+  background: #f6fff4;
+}
+
+.notice.postforge-error {
+  border-left: 4px solid #dc3232;
+  padding: 10px;
+  background: #fff4f4;
+}
+  .status-badge {
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        color: #fff;
+    }
+
+    .status-active {
+        background-color: #46b450;
+    }
+
+    .status-inactive {
+        background-color: #d63638;
+    }
+
+    .action-link {
+        text-decoration: none;
+        margin-right: 6px;
+        font-weight: 500;
+    }
+
+    .action-link.edit {
+        color: #0073aa;
+    }
+
+    .action-link.toggle {
+        color: #ff9800;
+    }
+
+    .action-link.delete {
+        color: #d63638;
+    }
+
+    .action-link:hover {
+        text-decoration: underline;
+    }
+
+    code {
+        background: #ccc;
+        padding: 2px 6px;
+        border-radius: 4px;
+        display: block;
+        font-size: 13px;
+    }
+
+    .wp-list-table th, .wp-list-table td {
+        vertical-align: middle;
+    }
+.dashicons {
+	font-size: 20px;
+	line-height: 1.4;
+	vertical-align: middle;
+	margin-right: 6px;
+	cursor: pointer;
+}
+
+.description {
+	color: #666;
+	font-size: 13px;
+	margin: 4px 0 0;
+}
+
+td code {
+	background: #ccc;
+	padding: 2px 6px;
+	border-radius: 3px;
+	display: block;
+}
+.shortcode-copy {
+	cursor: pointer;
+	position: relative;
+	display: inline-block;
+        width: 80%;
+
+}
+
+.copy-feedback {
+	color: #46b450;
+	margin-left: 5px;
+	vertical-align: middle;
+}
