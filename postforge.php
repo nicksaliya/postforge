@@ -6,7 +6,7 @@
  * Author:            Rahul Dungarani / Volcone Web Solutions
  * Text Domain:       volcone.com
  * Domain Path:       /languages
- * Author URI: https://volcone.com/
+ * Author URI:        https://volcone.com/
  */
 
 if ( ! defined( 'WPINC' ) ) {
