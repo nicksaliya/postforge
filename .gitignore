@@ -1,0 +1,8 @@
+# Ignore Composer.json
+composer.json
+
+# Ignore PHP CodeSniffer config
+phpcs.xml
+
+# Ignore entire VS Code settings folder
+.vscode/

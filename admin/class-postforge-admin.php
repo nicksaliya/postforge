@@ -21,6 +21,19 @@ class Postforge_Admin {
 		add_action( 'admin_menu', array( $this, 'add_plugin_admin_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_action( 'wp_ajax_postforge_get_post_type_data', array( $this, 'ajax_get_post_type_data' ) );
+		add_action( 'wp_ajax_postforge_get_available_user_roles', array( $this, 'ajax_get_available_user_roles' ) );
+		add_filter( 'postforge_allowed_post_types', array( $this, 'postforge_allowed_post_types' ) );
+		add_action( 'admin_post_save_postforge_form',  array( $this,'postforge_handle_form_save' ) );
+		add_action( 'admin_post_preview_postforge_form', array( $this, 'postforge_handle_form_preview' ) );
+	}
+
+	/**
+	 * Exclude Page and Attachement Post Type While Set up Form in Admin
+	 */
+	public function postforge_allowed_post_types( $post_types ) {
+		unset( $post_types['page'] );
+		unset( $post_types['attachment'] );
+		return $post_types;
 	}
 
 	/**
@@ -60,6 +73,12 @@ class Postforge_Admin {
 	 */
 	public function enqueue_admin_assets( $hook ) {
 		if ( strpos( $hook, 'postforge' ) !== false ) {
+
+			wp_enqueue_script( 'jquery-ui-accordion' );
+    		wp_enqueue_script( 'jquery-ui-sortable' );
+    		wp_enqueue_style( 'wp-jquery-ui-dialog' );
+
+
 			wp_enqueue_style(
 				'postforge-admin',
 				plugin_dir_url( __FILE__ ) . 'css/postforge-admin.css',
@@ -69,7 +88,7 @@ class Postforge_Admin {
 			wp_enqueue_script(
 				'postforge-admin',
 				plugin_dir_url( __FILE__ ) . 'js/postforge-admin.js',
-				array( 'jquery' ),
+				array( 'jquery', 'jquery-ui-accordion', 'jquery-ui-sortable' ),
 				time(),
 				true
 			);
@@ -205,8 +224,6 @@ class Postforge_Admin {
 						</tr>
 					<?php endforeach; ?>
 					</tbody>
-
-
 				</table>
 			<?php else : ?>
 				<p><?php esc_html_e( 'No forms found.', 'postforge' ); ?></p>
@@ -233,69 +250,25 @@ class Postforge_Admin {
 			}
 		}
 
-		// Handle form submission:
-		if ( isset( $_POST['postforge_nonce'] ) && wp_verify_nonce( $_POST['postforge_nonce'], 'save_postforge_form' ) ) {
-			$title = sanitize_text_field( $_POST['postforge_form_title'] );
-
-			$post_data = array(
-				'post_title'  => $title,
-				'post_type'   => 'postforge_form',
-				'post_status' => 'publish',
-			);
-
-			if ( $form_id ) {
-				$post_data['ID'] = $form_id;
-				$form_id         = wp_update_post( $post_data );
-			} else {
-				$form_id = wp_insert_post( $post_data );
-			}
-
-			if ( $form_id ) {
-				update_post_meta( $form_id, 'postforge_post_type', sanitize_text_field( $_POST['postforge_post_type'] ) );
-				update_post_meta( $form_id, 'postforge_login_required', isset( $_POST['postforge_login_required'] ) ? 1 : 0 );
-				update_post_meta( $form_id, 'postforge_include_featured_image', isset( $_POST['postforge_include_featured_image'] ) ? 1 : 0 );
-				update_post_meta( $form_id, 'postforge_form_enabled', isset( $_POST['postforge_form_enabled'] ) ? 1 : 0 );
-
-				$selected_taxonomies = isset( $_POST['postforge_taxonomies'] )
-					? array_map( 'sanitize_text_field', $_POST['postforge_taxonomies'] )
-					: array();
-				update_post_meta( $form_id, 'postforge_taxonomies', $selected_taxonomies );
-
-				$custom_fields = array();
-				if ( isset( $_POST['postforge_custom_fields'] ) ) {
-					foreach ( $_POST['postforge_custom_fields'] as $meta_key => $field_data ) {
-						if ( isset( $field_data['enabled'] ) ) {
-							$custom_fields[] = array(
-								'meta_key' => sanitize_text_field( $meta_key ),
-								'label'    => sanitize_text_field( $field_data['label'] ?? '' ),
-								'required' => isset( $field_data['required'] ) ? 1 : 0,
-							);
-						}
-					}
-				}
-				update_post_meta( $form_id, 'postforge_custom_fields', $custom_fields );
-				// Always redirect before output!
-				wp_safe_redirect( admin_url( 'admin.php?page=postforge&message=saved' ) );
-				exit;
-			}
-		}
-
 		$values = array(
 			'title'                   => $form ? $form->post_title : '',
+			'description'             => $form ? $form->post_content : '',
 			'post_type'               => $form ? get_post_meta( $form->ID, 'postforge_post_type', true ) : '',
 			'login_required'          => $form ? get_post_meta( $form->ID, 'postforge_login_required', true ) : '',
 			'include_featured_image'  => $form ? get_post_meta( $form->ID, 'postforge_include_featured_image', true ) : '',
 			'enabled'                 => $form ? get_post_meta( $form->ID, 'postforge_form_enabled', true ) : '1',
+			'allowed_roles'           => $form ? get_post_meta( $form->ID, 'postforge_allowed_roles', true ) : array(),
 		);
 
 		$post_types = get_post_types( array( 'public' => true ), 'objects' );
+		$post_types = apply_filters( 'postforge_allowed_post_types', $post_types );
 		?>
 		<div class="wrap">
 			<h1><?php echo $form ? esc_html__( 'Edit Form', 'postforge' ) : esc_html__( 'Add New Form', 'postforge' ); ?></h1>
 
-			<form method="post">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<?php wp_nonce_field( 'save_postforge_form', 'postforge_nonce' ); ?>
-
+    			<input type="hidden" name="form_id" value="<?php echo esc_attr( $form_id ); ?>">
 				<table class="form-table">
 					<tr>
 						<th><label for="postforge_form_title"><?php esc_html_e( 'Form Title', 'postforge' ); ?></label></th>
@@ -303,6 +276,14 @@ class Postforge_Admin {
 							<input type="text" name="postforge_form_title" id="postforge_form_title" class="regular-text" required value="<?php echo esc_attr( $values['title'] ); ?>">
 						</td>
 					</tr>
+
+					<tr>
+						<th><label for="postforge_form_description"><?php esc_html_e( 'Form Description', 'postforge' ); ?></label></th>
+						<td>
+							<textarea name="postforge_form_description" id="postforge_form_description" class="regular-text" required><?php echo esc_textarea( $values['description'] ); ?></textarea>
+						</td>
+					</tr>
+					
 					<tr>
 						<th><label for="postforge_post_type"><?php esc_html_e( 'Post Type', 'postforge' ); ?></label></th>
 						<td>
@@ -325,9 +306,50 @@ class Postforge_Admin {
 						<th><?php esc_html_e( 'Login Required?', 'postforge' ); ?></th>
 						<td>
 							<label>
-								<input type="checkbox" name="postforge_login_required" value="1" <?php checked( $values['login_required'], 1 ); ?>>
+								<input type="checkbox" name="postforge_login_required" id="postforge_login_required_permission" value="1" <?php checked( $values['login_required'], 1 ); ?>>
 								<?php esc_html_e( 'Only allow logged-in users to submit this form.', 'postforge' ); ?>
 							</label>
+							<!-- Roles wrapper (will be populated by JS) -->
+							<?php
+							$show_roles_wrapper = ( isset( $values['login_required'] ) && 1 === (int) $values['login_required'] );
+							?>
+							<div id="postforge_roles_wrapper" style="margin-top:8px; <?php echo $show_roles_wrapper ? 'display:block;' : 'display:none;'; ?>">
+								<div style="font-weight: 600; margin-bottom: 6px;">
+									<?php esc_html_e( 'Select allowed roles:', 'postforge' ); ?>
+								</div>
+								<?php
+								if ( $show_roles_wrapper ) {
+									$all_roles = postforge_get_available_user_roles();
+
+									if ( ! empty( $all_roles ) && is_array( $all_roles ) ) {
+										foreach ( $all_roles as $role ) {
+											$key   = isset( $role['key'] ) ? sanitize_key( $role['key'] ) : '';
+											$label = isset( $role['label'] ) ? sanitize_text_field( $role['label'] ) : '';
+
+											if ( empty( $key ) || empty( $label ) ) {
+												continue;
+											}
+
+											// Check if role is already saved.
+											$checked = '';
+											if ( ! empty( $values['allowed_roles'] ) && is_array( $values['allowed_roles'] ) ) {
+												$checked = checked( in_array( $key, $values['allowed_roles'], true ), true, false );
+											}
+											?>
+											<label style="margin-right: 12px;">
+												<input type="checkbox"
+													name="postforge_allowed_roles[]"
+													value="<?php echo esc_attr( $key ); ?>"
+													<?php echo $checked; ?>
+												/>
+												<?php echo esc_html( $label ); ?>
+											</label>
+											<?php
+										}
+									}
+								}
+								?>
+							</div>
 						</td>
 					</tr>
 					<tr>
@@ -351,18 +373,334 @@ class Postforge_Admin {
 				</table>
 
 				<div id="postforge-dynamic-fields"></div>
-
-				<?php submit_button( $form ? __( 'Update Form', 'postforge' ) : __( 'Save Form', 'postforge' ) ); ?>
+				<div class="postforge-footer-section">
+					<?php submit_button( $form ? __( 'Update Form', 'postforge' ) : __( 'Save Form', 'postforge' ), 'primary', 'submit-save', true, array( 'formaction' => admin_url( 'admin-post.php?action=save_postforge_form' ) ) ); ?>
+					<?php if ( $form ) { 
+						submit_button( __( 'Preview', 'postforge' ), 'secondary', 'submit-preview', true, 
+						array( 'formaction' => admin_url( 'admin-post.php?action=preview_postforge_form' ), 'formtarget' => "_blank" ));
+						} ?>
+				</div>
+				
 			</form>
 		</div>
-
+		<?php $postforge_taxonomies_data = get_post_meta( $form->ID, 'postforge_taxonomies', true ); 
+			  $postforge_taxonomies = is_array( $postforge_taxonomies_data ) ? array_keys( $postforge_taxonomies_data ) : [];
+		?>
 		<script type="text/javascript">
 			window.postforge_form_data = <?php echo wp_json_encode( array(
-				'taxonomies'    => $form ? get_post_meta( $form->ID, 'postforge_taxonomies', true ) : array(),
-				'custom_fields' => $form ? get_post_meta( $form->ID, 'postforge_custom_fields', true ) : array(),
+				'taxonomies'    	=> $form ? $postforge_taxonomies : array(),
+				'taxonomies_data'   => $form ? get_post_meta( $form->ID, 'postforge_taxonomies', true ) : array(),
+				'custom_fields' 	=> $form ? get_post_meta( $form->ID, 'postforge_custom_fields', true ) : array(),
 			) ); ?>;
 		</script>
 		<?php
+	}
+
+	/**
+	 * Handle form submission:
+	 * Hook : admin_post_save_postforge_form
+	 */
+	public function postforge_handle_form_save() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( __( 'Unauthorized.', 'postforge' ) );
+		}
+		check_admin_referer( 'save_postforge_form', 'postforge_nonce' );
+
+		$form_id   = isset( $_POST['form_id'] ) ? absint( $_POST['form_id'] ) : 0;
+		$form    = null;
+
+		if ( $form_id ) {
+			$form = get_post( $form_id );
+			if ( ! $form || $form->post_type !== 'postforge_form' ) {
+				wp_die( __( 'Form not found.', 'postforge' ) );
+			}
+		}
+
+		
+		// echo "<pre>" . print_r($_POST['postforge_taxonomies'], true) . "</pre>";
+		// 		die;
+		 
+		// Handle form submission:
+		if ( isset( $_POST['postforge_nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['postforge_nonce'] ) ), 'save_postforge_form' )) {
+			$title = sanitize_text_field( $_POST['postforge_form_title'] );
+			$description = isset( $_POST['postforge_form_description'] )  ? sanitize_textarea_field( $_POST['postforge_form_description'] ) : '';
+			$post_data = array(
+				'post_title'  	=>  $title,
+				'post_content'  =>  $description,
+				'post_type'   	=> 'postforge_form',
+				'post_status' 	=> 'publish',
+			);
+
+			if ( $form_id ) {
+				$post_data['ID'] = $form_id;
+				$form_id         = wp_update_post( $post_data );
+			} else {
+				$form_id = wp_insert_post( $post_data );
+			}
+
+			if ( $form_id ) {
+				update_post_meta( $form_id, 'postforge_post_type', sanitize_text_field( $_POST['postforge_post_type'] ) );
+				update_post_meta( $form_id, 'postforge_login_required', isset( $_POST['postforge_login_required'] ) ? 1 : 0 );
+				update_post_meta( $form_id, 'postforge_include_featured_image', isset( $_POST['postforge_include_featured_image'] ) ? 1 : 0 );
+				update_post_meta( $form_id, 'postforge_form_enabled', isset( $_POST['postforge_form_enabled'] ) ? 1 : 0 );
+				
+				/**
+				 * Save allowed roles (array of strings)
+				 */
+				if ( isset( $_POST['postforge_allowed_roles'] ) && is_array( $_POST['postforge_allowed_roles'] ) ) {
+					// Sanitize roles
+					$allowed_roles = array_map( 'sanitize_text_field', wp_unslash( $_POST['postforge_allowed_roles'] ) );
+					$allowed_roles = array_filter( $allowed_roles ); // remove empty values
+					update_post_meta( $form_id, 'postforge_allowed_roles', $allowed_roles );
+				} else {
+					// No roles selected → delete meta
+					delete_post_meta( $form_id, 'postforge_allowed_roles' );
+				}
+				$selected_taxonomies = array();
+				$checked  = isset( $_POST['postforge_taxonomies'] )
+					? array_map( 'sanitize_text_field', $_POST['postforge_taxonomies'] )
+					: array();
+
+				$tax_data = isset( $_POST['postforge_taxonomies_data'] ) && is_array( $_POST['postforge_taxonomies_data'] )
+					? $_POST['postforge_taxonomies_data']
+					: array();
+
+				foreach ( $checked as $taxonomy ) {
+					if ( isset( $tax_data[ $taxonomy ]['type'] ) ) {
+						$selected_taxonomies[ $taxonomy ] = array(
+							'type' => sanitize_text_field( $tax_data[ $taxonomy ]['type'] ),
+						);
+					}
+				}
+
+				update_post_meta( $form_id, 'postforge_taxonomies', $selected_taxonomies );
+				
+				
+				$custom_fields = array();
+				if ( isset( $_POST['postforge_custom_fields'] ) ) {
+					foreach ( $_POST['postforge_custom_fields'] as $meta_key => $field_data ) {
+						if ( isset( $field_data['enabled'] ) ) {
+							$custom_fields[] = array(
+								'meta_key' => sanitize_text_field( $meta_key ),
+								'label'    => sanitize_text_field( $field_data['label'] ?? '' ),
+								'required' => isset( $field_data['required'] ) ? 1 : 0,
+								'enabled' => isset( $field_data['enabled'] ) ? 1 : 0,
+								'type' => isset( $field_data['type'] ) ? $field_data['type'] : 0,
+							);
+						}
+					}
+				}
+				update_post_meta( $form_id, 'postforge_custom_fields', $custom_fields );
+				// Always redirect before output!
+				 
+				wp_redirect( admin_url( 'admin.php?page=postforge&message=saved' ) );
+				exit;
+			}
+		}
+	}
+
+	/**
+	 * Handle form preview:
+	 * Hook: admin_post_preview_postforge_form
+	 */
+	public function postforge_handle_form_preview() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( __( 'Unauthorized.', 'postforge' ) );
+		}
+
+		check_admin_referer( 'save_postforge_form', 'postforge_nonce' );
+
+		$selected_taxonomies = array();
+		$checked  = isset( $_POST['postforge_taxonomies'] )
+			? array_map( 'sanitize_text_field', $_POST['postforge_taxonomies'] )
+			: array();
+
+		$tax_data = isset( $_POST['postforge_taxonomies_data'] ) && is_array( $_POST['postforge_taxonomies_data'] )
+			? $_POST['postforge_taxonomies_data']
+			: array();
+
+		foreach ( $checked as $taxonomy ) {
+			if ( isset( $tax_data[ $taxonomy ]['type'] ) ) {
+				$selected_taxonomies[ $taxonomy ] = array(
+					'type' => sanitize_text_field( $tax_data[ $taxonomy ]['type'] ),
+				);
+			}
+		}
+
+		// Collect values directly from $_POST (not DB)
+		$values = array(
+			'post_type'          => sanitize_text_field( $_POST['postforge_post_type'] ?? '' ),
+			'taxonomies'         => isset( $_POST['postforge_taxonomies'] ) ? array_map( 'sanitize_text_field', (array) $_POST['postforge_taxonomies'] ) : array(),
+			'selected_taxonomies_data' => $selected_taxonomies,
+			'custom_fields'      => $_POST['postforge_custom_fields'] ?? array(),
+			'login_required'     => isset( $_POST['postforge_login_required'] ) ? 1 : 0,
+			'success_message'    => sanitize_text_field( $_POST['postforge_success_message'] ?? '' ),
+			'post_status'        => sanitize_text_field( $_POST['postforge_post_status'] ?? '' ),
+			'notification_email' => sanitize_email( $_POST['postforge_notification_email'] ?? '' ),
+			'allowed_roles'      => isset( $_POST['postforge_allowed_roles'] ) ? array_map( 'sanitize_text_field', (array) $_POST['postforge_allowed_roles'] ) : array(),
+		);
+
+		// Render preview page
+		 
+		echo '<div class="wrap">';
+		echo '<h2>' . esc_html__( 'Form Preview', 'postforge' ) . '</h2>';
+
+		// Pass data into the renderer in preview mode
+		echo $this->postforge_render_form_preview( $values );
+
+		echo '</div>';
+		 
+		exit;
+	}
+
+	/**
+	 * Generate Preview code
+	 */
+	public function postforge_render_form_preview( $values ) {
+		ob_start();
+		 
+		?>
+		<form method="post" class="postforge-form" style="width:100%;">
+			<p>
+				<label for="postforge_post_title"><?php esc_html_e( 'Post Title', 'postforge' ); ?> *</label><br>
+				<input type="text" id="postforge_post_title" name="postforge_post_title" required>
+			</p>
+
+			<p>
+				<label for="postforge_post_content"><?php esc_html_e( 'Post Content', 'postforge' ); ?> *</label><br>
+				<textarea id="postforge_post_content" name="postforge_post_content" required></textarea>
+			</p>
+
+			<?php if ( ! empty( $values['selected_taxonomies_data'] ) ) : ?>
+					<?php foreach ( $values['selected_taxonomies_data'] as $taxonomy => $settings ) :
+						$terms = get_terms(
+							array(
+								'taxonomy'   => $taxonomy,
+								'hide_empty' => false,
+							)
+						);
+
+						if ( empty( $terms ) ) {
+							continue;
+						}
+
+						$field_type = isset( $settings['type'] ) ? $settings['type'] : 'select';
+						$taxonomy_obj = get_taxonomy( $taxonomy );
+						?>
+						<p>
+							<label for="taxonomy_<?php echo esc_attr( $taxonomy ); ?>">
+								<?php echo esc_html( $taxonomy_obj->labels->singular_name ); ?>
+							</label><br>
+
+							<?php if ( $field_type === 'select' ) : ?>
+								<select id="taxonomy_<?php echo esc_attr( $taxonomy ); ?>" name="taxonomy_<?php echo esc_attr( $taxonomy ); ?>">
+									<option value=""><?php esc_html_e( 'Select…', 'postforge' ); ?></option>
+									<?php foreach ( $terms as $term ) : ?>
+										<option value="<?php echo esc_attr( $term->term_id ); ?>">
+											<?php echo esc_html( $term->name ); ?>
+										</option>
+									<?php endforeach; ?>
+								</select>
+
+							<?php elseif ( $field_type === 'multiselect' ) : ?>
+								<select id="taxonomy_<?php echo esc_attr( $taxonomy ); ?>" name="taxonomy_<?php echo esc_attr( $taxonomy ); ?>[]" multiple>
+									<?php foreach ( $terms as $term ) : ?>
+										<option value="<?php echo esc_attr( $term->term_id ); ?>">
+											<?php echo esc_html( $term->name ); ?>
+										</option>
+									<?php endforeach; ?>
+								</select>
+
+							<?php elseif ( $field_type === 'checkbox' ) : ?>
+								<?php foreach ( $terms as $term ) : ?>
+									<label>
+										<input type="checkbox" name="taxonomy_<?php echo esc_attr( $taxonomy ); ?>[]" value="<?php echo esc_attr( $term->term_id ); ?>">
+										<?php echo esc_html( $term->name ); ?>
+									</label><br>
+								<?php endforeach; ?>
+
+							<?php elseif ( $field_type === 'radio' ) : ?>
+								<?php foreach ( $terms as $term ) : ?>
+									<label>
+										<input type="radio" name="taxonomy_<?php echo esc_attr( $taxonomy ); ?>" value="<?php echo esc_attr( $term->term_id ); ?>">
+										<?php echo esc_html( $term->name ); ?>
+									</label><br>
+								<?php endforeach; ?>
+							<?php endif; ?>
+						</p>
+					<?php endforeach; ?>
+				<?php endif; ?>
+
+
+			<?php if ( ! empty( $values['custom_fields'] ) ) : ?>
+				<?php foreach ( $values['custom_fields'] as $meta_key => $field ) :
+
+					$label    = $field['label'] ?? $meta_key;
+					$field_object = null;
+
+					if ( function_exists( 'acf_get_field' ) ) {
+						$field_object = acf_get_field( $meta_key );
+					}
+
+					$type     = $field_object['type'] ?? 'text';
+					$required = ! empty( $field['required'] ) ? 'required' : '';
+					$choices  = $field_object['choices'] ?? array();
+					?>
+					
+					<p>
+						<label for="field_<?php echo esc_attr( $meta_key ); ?>">
+							<?php echo esc_html( $label ); ?>
+							<?php echo $required ? ' *' : ''; ?>
+						</label><br>
+
+						<?php if ( 'textarea' === $type ) : ?>
+							<textarea id="field_<?php echo esc_attr( $meta_key ); ?>" <?php echo esc_attr( $required ); ?>></textarea>
+
+						<?php elseif ( 'select' === $type && ! empty( $choices ) ) : ?>
+							<select id="field_<?php echo esc_attr( $meta_key ); ?>" <?php echo esc_attr( $required ); ?>>
+								<option value=""><?php esc_html_e( 'Select…', 'postforge' ); ?></option>
+								<?php foreach ( $choices as $key => $choice ) : ?>
+									<option value="<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $choice ); ?></option>
+								<?php endforeach; ?>
+							</select>
+
+						<?php elseif ( 'checkbox' === $type && ! empty( $choices ) ) : ?>
+							<?php foreach ( $choices as $key => $choice ) : ?>
+								<label>
+									<input type="checkbox" name="field_<?php echo esc_attr( $meta_key ); ?>[]" value="<?php echo esc_attr( $key ); ?>"> 
+									<?php echo esc_html( $choice ); ?>
+								</label><br>
+							<?php endforeach; ?>
+
+						<?php else : ?>
+							<input type="text" id="field_<?php echo esc_attr( $meta_key ); ?>" <?php echo esc_attr( $required ); ?>>
+						<?php endif; ?>
+					</p>
+
+				<?php endforeach; ?>
+			<?php endif; ?>
+
+			<p>
+				<button type="button" disabled><?php esc_html_e( 'Submit (Preview only)', 'postforge' ); ?></button>
+			</p>
+		</form>
+
+		<?php
+
+		return ob_get_clean();
+	}
+
+	/**
+	 * Get Available User Roles
+	 */
+
+	public function ajax_get_available_user_roles(){
+		// Security check
+		check_ajax_referer( 'postforge_ajax_nonce', 'nonce' );
+
+		$response = postforge_get_available_user_roles();
+
+		wp_send_json_success( $response );
 	}
 
 	/**
@@ -398,8 +736,13 @@ class Postforge_Admin {
 					foreach ( $fields as $field ) {
 						if ( ! empty( $field['name'] ) ) {
 							$meta_keys[] = array(
-								'meta_key' => $field['name'],
-								'label'    => $field['label'],
+								'meta_key' 		=> $field['name'],
+								'label'    		=> $field['label'],
+								'type'    		=> $field['type'],
+								'prefix'    	=> $field['prefix'],
+								'placeholder'   => $field['placeholder'],
+								'required'    	=> $field['required'],
+								'choices'    	=> !empty($field['choices']) ? $field['choices'] : array(),
 							);
 						}
 					}
@@ -427,8 +770,13 @@ class Postforge_Admin {
 
 			foreach ( $found_keys as $key ) {
 				$meta_keys[] = array(
-					'meta_key' => $key,
-					'label'    => $key,
+					'meta_key' 		=> $key,
+					'label'    		=> $key,
+					'type'    		=> '',
+					'prefix'    	=> '',
+					'placeholder' 	=> '',
+					'required'    	=> '',
+					'choices'    	=> array(),
 				);
 			}
 		}
