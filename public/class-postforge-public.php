@@ -21,7 +21,8 @@ class Postforge_Public {
 
         $form_id = intval( $atts['id'] );
         if ( ! $form_id ) {
-            return '<p>Invalid form ID.</p>';
+            echo '<p>' . esc_html__( 'Invalid form ID.', 'postforge' ) . '</p>';
+            return ob_get_clean();
         }
 
         // Get form settings
@@ -32,14 +33,31 @@ class Postforge_Public {
         $success_message = get_post_meta( $form_id, 'postforge_success_message', true );
         $default_status = get_post_meta( $form_id, 'postforge_post_status', true );
         $notification_email = get_post_meta( $form_id, 'postforge_notification_email', true );
+        $allowed_roles = get_post_meta( $form_id, 'postforge_allowed_roles', true );
+        // Make sure it's an array.
+        $allowed_roles = is_array( $allowed_roles ) ? $allowed_roles : array();
 
         ob_start();
 
         // Check login requirement
         if ( $login_required && ! is_user_logged_in() ) {
-            echo '<p>You must be logged in to submit this form.</p>';
+            echo '<p>' . esc_html__( 'You must be logged in to submit this form.', 'postforge' ) . '</p>';
             return ob_get_clean();
+        }elseif(  $login_required && is_user_logged_in() ){
+            $current_user = wp_get_current_user();
+            // wp_get_current_user()->roles returns an array (user may have multiple roles).
+            $user_roles = (array) $current_user->roles;
+
+            // Check if there is any intersection between allowed roles and user roles.
+            $has_access = array_intersect( $allowed_roles, $user_roles );
+
+            if ( empty( $has_access ) ) {
+                // User dont have permission.
+                echo '<p>' . esc_html__( 'You do not have permission to access this form.', 'postforge' ) . '</p>';
+                return ob_get_clean();
+            }
         }
+        
 
         // Handle form submission
         if ( isset( $_POST['postforge_submit'] ) && isset( $_POST['postforge_form_id'] ) && intval( $_POST['postforge_form_id'] ) === $form_id ) {

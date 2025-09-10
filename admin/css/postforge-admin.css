@@ -18,6 +18,45 @@
   max-width: 300px;
 }
 
+/* Admin side Accordion for Custom Field Start */
+
+.postforge-field-group {
+  margin-bottom: 10px;
+  border: 1px solid #ccd0d4;
+  border-radius: 4px;
+}
+
+.postforge-field-group h3 {
+  background: #f6f7f7;
+  margin: 0;
+  padding: 10px;
+  cursor: move;
+  /* drag handle */
+  border-bottom: 1px solid #ccd0d4;
+}
+
+.postforge-field-group .ui-accordion-content {
+  padding: 15px;
+  background: #fff;
+}
+
+#postforge-accordion h3 {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+#postforge-accordion h3 .toggle-icon {
+  font-weight: bold;
+  margin-right: 8px;
+  color: #2271b1;
+  /* WP blue */
+  width: 16px;
+  text-align: center;
+}
+
+/* End Admin side Accordion for Custom Field */
+
 .notice.postforge-success {
   border-left: 4px solid #46b450;
   padding: 10px;
@@ -29,84 +68,109 @@
   padding: 10px;
   background: #fff4f4;
 }
-  .status-badge {
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 12px;
-        color: #fff;
-    }
 
-    .status-active {
-        background-color: #46b450;
-    }
+.status-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #fff;
+}
 
-    .status-inactive {
-        background-color: #d63638;
-    }
+.status-active {
+  background-color: #46b450;
+}
 
-    .action-link {
-        text-decoration: none;
-        margin-right: 6px;
-        font-weight: 500;
-    }
+.status-inactive {
+  background-color: #d63638;
+}
 
-    .action-link.edit {
-        color: #0073aa;
-    }
+.action-link {
+  text-decoration: none;
+  margin-right: 6px;
+  font-weight: 500;
+}
 
-    .action-link.toggle {
-        color: #ff9800;
-    }
+.action-link.edit {
+  color: #0073aa;
+}
 
-    .action-link.delete {
-        color: #d63638;
-    }
+.action-link.toggle {
+  color: #ff9800;
+}
 
-    .action-link:hover {
-        text-decoration: underline;
-    }
+.action-link.delete {
+  color: #d63638;
+}
 
-    code {
-        background: #ccc;
-        padding: 2px 6px;
-        border-radius: 4px;
-        display: block;
-        font-size: 13px;
-    }
+.action-link:hover {
+  text-decoration: underline;
+}
 
-    .wp-list-table th, .wp-list-table td {
-        vertical-align: middle;
-    }
+code {
+  background: #ccc;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: block;
+  font-size: 13px;
+}
+
+.wp-list-table th,
+.wp-list-table td {
+  vertical-align: middle;
+}
+
 .dashicons {
-	font-size: 20px;
-	line-height: 1.4;
-	vertical-align: middle;
-	margin-right: 6px;
-	cursor: pointer;
+  font-size: 20px;
+  line-height: 1.4;
+  vertical-align: middle;
+  margin-right: 6px;
+  cursor: pointer;
 }
 
 .description {
-	color: #666;
-	font-size: 13px;
-	margin: 4px 0 0;
+  color: #666;
+  font-size: 13px;
+  margin: 4px 0 0;
 }
 
 td code {
-	background: #ccc;
-	padding: 2px 6px;
-	border-radius: 3px;
-	display: block;
+  background: #ccc;
+  padding: 2px 6px;
+  border-radius: 3px;
+  display: block;
 }
+
 .shortcode-copy {
-	cursor: pointer;
-	position: relative;
-	display: inline-block;
-        width: 80%;
+  cursor: pointer;
+  position: relative;
+  display: inline-block;
+  width: 80%;
 
 }
 
 .copy-feedback {
-	color: #46b450;
-	margin-left: 5px;
-	vertical-align: middle;
+  color: #46b450;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+
+.postforge-footer-section {
+  display: flex;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.postforge-field-group.taxonomies-section .taxonomy-container {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+/* Column widths */
+.postforge-field-group.taxonomies-section .taxonomy-container .taxonomy-checkbox {
+  width: 15%;
+}
+
+.postforge-field-group.taxonomies-section .taxonomy-container .taxonomy-field-type {
+  width: 15%;
 }
