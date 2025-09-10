@@ -27,6 +27,7 @@ register_activation_hook( __FILE__, 'activate_postforge' );
 register_deactivation_hook( __FILE__, 'deactivate_postforge' );
 
 require plugin_dir_path( __FILE__ ) . 'includes/class-postforge.php';
+require plugin_dir_path( __FILE__ ) . 'helper/helper-functions.php';
 
 function run_postforge() {
     $plugin = new Postforge();
